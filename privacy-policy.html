@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoapScribe — プライバシーポリシー / Privacy Policy</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', sans-serif;
+      color: #222;
+      background: #f6f6f6;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+    .header {
+      background: #252b47;
+      color: #fff;
+      padding: 20px 32px;
+      font-size: 18px;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+    }
+    .header small {
+      display: block;
+      font-size: 12px;
+      font-weight: normal;
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 32px auto;
+      padding: 0 24px 48px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #d0dce8;
+      border-radius: 6px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      font-size: 15px;
+      font-weight: bold;
+      color: #464e78;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #d8e9ef;
+    }
+    h3 {
+      font-size: 13px;
+      font-weight: bold;
+      color: #252b47;
+      margin: 16px 0 6px;
+    }
+    p { margin-bottom: 10px; font-size: 14px; }
+    ul {
+      margin: 8px 0 10px 20px;
+      font-size: 14px;
+    }
+    li { margin-bottom: 4px; }
+    .tag {
+      display: inline-block;
+      background: #ebf4f7;
+      color: #464e78;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 2em;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .notice {
+      background: #fff8e1;
+      border: 1px solid #ffe082;
+      border-radius: 4px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #5d4037;
+      margin: 10px 0;
+    }
+    .meta {
+      font-size: 12px;
+      color: #888;
+      margin-top: 24px;
+      text-align: right;
+    }
+    a { color: #7397ec; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .card { padding: 18px 16px; }
+      .container { padding: 0 12px 32px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  SoapScribe — プライバシーポリシー
+  <small>Privacy Policy / Last updated: 2026-04-22</small>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <h2>1. 概要 / Overview</h2>
+    <p>
+      SoapScribe（以下「本拡張機能」）は、医療法人社団かけはし（東小金井小児神経・脳神経内科クリニック）が開発・提供するGoogle Chrome拡張機能です。
+      クラウド型電子カルテ（CLIUS）上での診察をAIがサポートし、SOAP形式の診療録作成を補助します。
+    </p>
+    <p>
+      SoapScribe is a Google Chrome extension developed by Kakehashi Medical Corporation (Higashi-Koganei Pediatric Neurology &amp; Neurology Clinic) to assist physicians in generating SOAP-format medical notes on the CLIUS cloud EMR.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>2. 収集するデータ / Data We Collect</h2>
+
+    <h3><span class="tag">収集する</span>診察中の音声文字起こしテキスト</h3>
+    <p>
+      「診察開始」ボタン押下後、Chrome内蔵のWeb Speech API（Googleが提供）により音声をリアルタイムでテキスト変換します。
+      変換されたテキストは、SOAP記録生成のためAnthropicのClaude APIに送信されます。
+      音声データ（wav/mp3等）はデバイス外に送信されず、本拡張機能がサーバーに保存することもありません。
+    </p>
+
+    <h3><span class="tag">収集する</span>Claude APIキー</h3>
+    <p>
+      管理者が設定画面から入力したAnthropicのAPIキーは <code>chrome.storage.sync</code> に保存され、同一Googleアカウントにサインインしたデバイス間で同期されます。
+      APIキーはAnthropicのサーバーへのリクエスト認証にのみ使用し、他の目的では使用しません。
+    </p>
+
+    <h3><span class="tag">収集する</span>プロンプト設定</h3>
+    <p>
+      管理者が設定したプロンプトのテキストは <code>chrome.storage.local</code> に保存されます。デバイス外には送信されません（エクスポート機能を除く）。
+    </p>
+
+    <h3><span class="tag">収集しない</span>患者の個人情報</h3>
+    <p>
+      本拡張機能のデフォルトプロンプトは、患者氏名・住所などの個人識別情報を匿名化するよう指示しています。ただし、音声内容に含まれる情報のAnthropicへの送信を技術的に防止するものではないため、個人情報が含まれないよう運用面での管理が必要です。
+    </p>
+    <div class="notice">
+      ⚠️ 本拡張機能を使用して記録された診療内容はAnthropicのAPIに送信されます。
+      個人を特定できる情報（氏名・生年月日・住所等）が含まれないよう、運用ルールを設けてください。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. データの利用目的 / How We Use Your Data</h2>
+    <ul>
+      <li>音声文字起こしテキスト：SOAP形式診療録の自動生成（Claude APIへの送信）</li>
+      <li>APIキー：Claude APIへの認証リクエスト</li>
+      <li>プロンプト設定：選択したプロンプトをClaude APIへの指示として使用</li>
+    </ul>
+    <p>収集したデータを広告目的・第三者への販売に使用することはありません。</p>
+  </div>
+
+  <div class="card">
+    <h2>4. 第三者サービス / Third-Party Services</h2>
+
+    <h3>Anthropic Claude API</h3>
+    <p>
+      診察テキストおよびAPIキーはAnthropicのサーバーに送信されます。
+      Anthropicのデータ取り扱いについては
+      <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener">Anthropic Privacy Policy</a>
+      をご参照ください。
+    </p>
+
+    <h3>Web Speech API（Google）</h3>
+    <p>
+      音声認識にはChrome内蔵のWeb Speech APIを使用します。音声データはGoogleのサーバーで処理される場合があります。
+      詳細は <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Googleプライバシーポリシー</a> をご参照ください。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>5. データの保存と削除 / Data Storage &amp; Deletion</h2>
+    <ul>
+      <li>APIキーは <code>chrome.storage.sync</code> に保存されます。Chrome設定 →「同期とGoogleサービス」→「同期をオフにする」で同期を停止できます。</li>
+      <li>プロンプト設定は <code>chrome.storage.local</code> に保存されます。Chrome設定 → 拡張機能 → SoapScribeを削除することでローカルデータも削除されます。</li>
+      <li>音声・文字起こしデータは本拡張機能のサーバーには保存されません。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>6. 対象ユーザー / Intended Users</h2>
+    <p>
+      本拡張機能は、医療法人社団かけはしのスタッフ（医師・医療従事者）のみを対象としています。
+      一般公開を目的としておらず、Chromeウェブストアへの掲載は組織内配布のためのものです。
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>7. お問い合わせ / Contact</h2>
+    <p>
+      プライバシーに関するご質問・ご要望は下記までお問い合わせください。
+    </p>
+    <p>
+      医療法人社団かけはし<br>
+      東小金井小児神経・脳神経内科クリニック<br>
+      担当：生田 陽二<br>
+      Email: <a href="mailto:ikuta@kakehashi-mc.jp">ikuta@kakehashi-mc.jp</a>
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>8. ポリシーの変更 / Policy Updates</h2>
+    <p>
+      本ポリシーは必要に応じて更新されます。重要な変更がある場合は、拡張機能の更新とともにお知らせします。
+      最終更新日はページ上部に記載しています。
+    </p>
+  </div>
+
+  <div class="meta">
+    医療法人社団かけはし &nbsp;|&nbsp; 最終更新: 2026年4月22日
+  </div>
+
+</div>
+</body>
+</html>

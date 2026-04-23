@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>SoapScribe 設定</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+      color: #222;
+      background: #f6f6f6;
+      font-size: 14px;
+    }
+
+    /* Header */
+    .page-header {
+      background: #252b47;
+      color: #fff;
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      letter-spacing: 0.04em;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; padding: 24px; }
+
+    section {
+      background: #fff;
+      border-radius: 6px;
+      padding: 22px;
+      margin-bottom: 16px;
+      border: 1px solid #d0dce8;
+    }
+
+    h2 {
+      font-size: 13px;
+      font-weight: bold;
+      color: #464e78;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #d8e9ef;
+      letter-spacing: 0.03em;
+    }
+
+    label {
+      font-size: 11px;
+      color: #4a4a4a;
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #d0dce8;
+      border-radius: 3px;
+      font-size: 13px;
+      font-family: 'Noto Sans JP', sans-serif;
+      color: #222;
+      background: #fff;
+    }
+    input:focus, textarea:focus {
+      outline: 2px solid #7397ec;
+      border-color: transparent;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d0dce8;
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: 'Noto Sans JP', sans-serif;
+      line-height: 1.6;
+      resize: vertical;
+      color: #222;
+    }
+
+    button {
+      padding: 8px 18px;
+      border: none;
+      border-radius: 2em;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: bold;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .btn-primary { background: #7397ec; color: #fff; }
+    .btn-primary:hover { background: #5a7edc; }
+    .btn-navy { background: #464e78; color: #fff; }
+    .btn-navy:hover { background: #252b47; }
+    .btn-danger { background: #ff3b48; color: #fff; }
+    .btn-danger:hover { background: #d42f3b; }
+    .btn-secondary {
+      background: #f6f6f6; color: #4a4a4a;
+      border: 1px solid #d0dce8;
+    }
+    .btn-secondary:hover { background: #ededed; }
+
+    .status { font-size: 12px; margin-top: 6px; min-height: 18px; }
+    .status.ok    { color: #2e7d32; }
+    .status.error { color: #ff3b48; }
+
+    /* Prompt manager */
+    .prompt-layout { display: flex; gap: 16px; min-height: 380px; }
+    .prompt-list-col { width: 210px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+    .prompt-edit-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+
+    .prompt-list {
+      border: 1px solid #d0dce8;
+      border-radius: 4px;
+      overflow-y: auto;
+      flex-grow: 1;
+      background: #fff;
+    }
+    .prompt-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      border-bottom: 1px solid #ebf4f7;
+      font-size: 13px;
+      word-break: break-all;
+      user-select: none;
+      color: #222;
+    }
+    .prompt-item:last-child { border-bottom: none; }
+    .prompt-item:hover { background: #ebf4f7; color: #464e78; }
+    .prompt-item.active { background: #464e78; color: #fff; }
+
+    .list-btns { display: flex; gap: 6px; }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .row { display: flex; align-items: center; gap: 10px; }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    ⚙️ SoapScribe — 設定
+  </div>
+
+  <div class="container">
+
+    <section>
+      <h2>Claude APIキー</h2>
+      <div class="field">
+        <label>APIキー（管理者のみ変更）</label>
+        <div class="row">
+          <input type="password" id="api-key" placeholder="sk-ant-api03-..." style="flex:1;">
+          <button class="btn-navy" id="btn-save-key">保存</button>
+        </div>
+        <div class="status" id="key-status"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>プロンプト管理</h2>
+      <div class="prompt-layout">
+
+        <div class="prompt-list-col">
+          <label>保存済みプロンプト</label>
+          <div class="prompt-list" id="prompt-list"></div>
+          <div class="list-btns">
+            <button class="btn-primary" id="btn-new-prompt" style="flex:1;">＋ 新規</button>
+            <button class="btn-danger" id="btn-delete-prompt">削除</button>
+          </div>
+        </div>
+
+        <div class="prompt-edit-col">
+          <div class="field">
+            <label>プロンプト名</label>
+            <input type="text" id="prompt-name" placeholder="例：標準SOAP、初診用、など">
+          </div>
+          <div class="field" style="flex-grow:1;">
+            <label>プロンプト内容（Claudeへの指示）</label>
+            <textarea id="prompt-content" style="flex-grow:1; min-height:280px;"></textarea>
+          </div>
+          <div class="row">
+            <button class="btn-primary" id="btn-save-prompt">保存</button>
+            <div class="status ok" id="prompt-status"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section>
+      <h2>設定の共有・同期</h2>
+      <p style="font-size:12px;color:#4a4a4a;margin-bottom:16px;line-height:1.7;">
+        管理者が設定（APIキー・プロンプト）をエクスポートし、各端末でインポートすることで複数端末・複数ブラウザに同じ設定を適用できます。
+      </p>
+      <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+        <div style="flex:1;min-width:200px;background:#ebf4f7;border:1px solid #d8e9ef;border-radius:6px;padding:16px;">
+          <div style="font-size:12px;font-weight:bold;color:#464e78;margin-bottom:6px;">① エクスポート（管理者）</div>
+          <div style="font-size:11px;color:#4a4a4a;margin-bottom:12px;line-height:1.6;">
+            現在の設定をJSONファイルとして保存します。<br>
+            <span style="color:#ff3b48;font-weight:bold;">APIキーが含まれます。</span>取り扱いにご注意ください。
+          </div>
+          <button class="btn-navy" id="btn-export" style="width:100%;">⬇ 設定をエクスポート</button>
+        </div>
+        <div style="flex:1;min-width:200px;background:#f6f6f6;border:1px solid #d0dce8;border-radius:6px;padding:16px;">
+          <div style="font-size:12px;font-weight:bold;color:#464e78;margin-bottom:6px;">② インポート（各端末）</div>
+          <div style="font-size:11px;color:#4a4a4a;margin-bottom:12px;line-height:1.6;">
+            受け取ったJSONファイルを読み込みます。<br>
+            現在の設定は上書きされます。
+          </div>
+          <input type="file" id="inp-import-file" accept=".json" style="display:none;">
+          <button class="btn-primary" id="btn-import" style="width:100%;">⬆ 設定をインポート</button>
+        </div>
+      </div>
+      <div class="status ok" id="sync-status" style="margin-top:10px;"></div>
+    </section>
+
+  </div>
+  <script src="options.js"></script>
+</body>
+</html>
