@@ -51,8 +51,9 @@ let selectedIndex = 0;
 // ---- Load saved settings ----
 // API key: chrome.storage.sync (follows Google account across devices)
 // Prompts:  chrome.storage.local (too large for sync quota)
-chrome.storage.sync.get(['claudeApiKey'], (syncResult) => {
+chrome.storage.sync.get(['claudeApiKey', 'deepgramApiKey'], (syncResult) => {
   if (syncResult.claudeApiKey) setKeyStatus('✅ APIキーが設定されています', true);
+  if (syncResult.deepgramApiKey) setDgKeyStatus('✅ APIキーが設定されています', true);
 });
 chrome.storage.local.get(['prompts'], (result) => {
   prompts = (result.prompts && result.prompts.length > 0) ? result.prompts : DEFAULT_PROMPTS;
@@ -98,6 +99,22 @@ function setKeyStatus(msg, ok) {
   el.className = 'status ' + (ok ? 'ok' : 'error');
 }
 
+// ---- Deepgram API key ----
+document.getElementById('btn-save-dg-key').addEventListener('click', () => {
+  const key = document.getElementById('dg-key').value.trim();
+  if (!key) { setDgKeyStatus('APIキーを入力してください', false); return; }
+  chrome.storage.sync.set({ deepgramApiKey: key }, () => {
+    document.getElementById('dg-key').value = '';
+    setDgKeyStatus('✅ Deepgram APIキーを保存しました（Googleアカウントに同期されます）', true);
+  });
+});
+
+function setDgKeyStatus(msg, ok) {
+  const el = document.getElementById('dg-key-status');
+  el.textContent = msg;
+  el.className = 'status ' + (ok ? 'ok' : 'error');
+}
+
 // ---- New prompt ----
 document.getElementById('btn-new-prompt').addEventListener('click', () => {
   prompts.push({ id: Date.now().toString(), name: '新しいプロンプト', content: '' });
@@ -134,12 +151,13 @@ function savePrompts() {
 // ---- Export ----
 document.getElementById('btn-export').addEventListener('click', () => {
   // Gather from both storage areas
-  chrome.storage.sync.get(['claudeApiKey'], (syncResult) => {
+  chrome.storage.sync.get(['claudeApiKey', 'deepgramApiKey'], (syncResult) => {
     chrome.storage.local.get(['prompts'], (localResult) => {
       const config = {
         version: '1.0',
         exportedAt: new Date().toISOString(),
         claudeApiKey: syncResult.claudeApiKey || '',
+        deepgramApiKey: syncResult.deepgramApiKey || '',
         prompts: localResult.prompts || DEFAULT_PROMPTS,
       };
       const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
@@ -180,7 +198,12 @@ document.getElementById('inp-import-file').addEventListener('change', (e) => {
           setKeyStatus('✅ APIキーを読み込みました', true);
         });
       }
-      setSyncStatus(`✅ インポート完了（プロンプト ${config.prompts.length} 件${config.claudeApiKey ? '・APIキー' : ''}）`);
+      if (config.deepgramApiKey) {
+        chrome.storage.sync.set({ deepgramApiKey: config.deepgramApiKey }, () => {
+          setDgKeyStatus('✅ Deepgram APIキーを読み込みました', true);
+        });
+      }
+      setSyncStatus(`✅ インポート完了（プロンプト ${config.prompts.length} 件${config.claudeApiKey ? '・Claudeキー' : ''}${config.deepgramApiKey ? '・Deepgramキー' : ''}）`);
     } catch (err) {
       setSyncStatus('❌ 読み込み失敗: ' + err.message, true);
     }

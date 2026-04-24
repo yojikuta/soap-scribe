@@ -145,7 +145,7 @@
   <div class="container">
 
     <section>
-      <h2>Claude APIキー</h2>
+      <h2>Claude APIキー（SOAP生成）</h2>
       <div class="field">
         <label>APIキー（管理者のみ変更）</label>
         <div class="row">
@@ -153,6 +153,18 @@
           <button class="btn-navy" id="btn-save-key">保存</button>
         </div>
         <div class="status" id="key-status"></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Deepgram APIキー（音声文字起こし）</h2>
+      <div class="field">
+        <label>APIキー（管理者のみ変更）</label>
+        <div class="row">
+          <input type="password" id="dg-key" placeholder="deepgram api key..." style="flex:1;">
+          <button class="btn-navy" id="btn-save-dg-key">保存</button>
+        </div>
+        <div class="status" id="dg-key-status"></div>
       </div>
     </section>
 

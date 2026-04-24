@@ -9,7 +9,8 @@
     "storage"
   ],
   "host_permissions": [
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "wss://api.deepgram.com/*"
   ],
   "icons": {
     "16":  "icons/icon16.png",

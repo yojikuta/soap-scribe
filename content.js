@@ -213,8 +213,9 @@ if (!document.getElementById('soap-voice-tool')) {
   let isRecording = false;
   let isMinimized = false;
   let prevH = `${H}px`, prevW = `${W}px`;
-  let recognition = null;
   let finalTranscript = '';
+  let micStream = null, tabStream = null, audioCtx = null;
+  let mediaRecorder = null, dgSocket = null;
 
   // ---- Initialise ----
   loadPrompts();
@@ -335,7 +336,7 @@ if (!document.getElementById('soap-voice-tool')) {
     minBtn.textContent = isMinimized ? '＋' : '－';
   });
 
-  closeBtn.addEventListener('click', () => { stopRecognition(); container.remove(); });
+  closeBtn.addEventListener('click', () => { stopRecording(); container.remove(); });
   miniStart.addEventListener('click', () => btnStart.click());
   miniStop.addEventListener('click',  () => btnStop.click());
 
@@ -354,53 +355,87 @@ if (!document.getElementById('soap-voice-tool')) {
   });
   document.addEventListener('mouseup', () => { dragging = false; });
 
-  // ---- Recording ----
-  btnStart.addEventListener('click', () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert('このブラウザは音声認識に対応していません。Google Chromeをご使用ください。'); return; }
+  // ---- Recording (Deepgram streaming) ----
+  btnStart.addEventListener('click', async () => {
+    const syncResult = await new Promise(r => chrome.storage.sync.get(['deepgramApiKey'], r));
+    const dgKey = syncResult.deepgramApiKey;
+    if (!dgKey) {
+      alert('Deepgram APIキーが未設定です。⚙️ 設定から入力してください。');
+      return;
+    }
 
     finalTranscript = '';
     txtTrans.value = '';
     txtSoap.value = '';
-    btnGenerate.style.display = 'none';
     btnRetry.style.display = 'none';
 
-    recognition = new SR();
-    recognition.lang = 'ja-JP';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onresult = (event) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const r = event.results[i];
-        if (r.isFinal) finalTranscript += r[0].transcript;
-        else interim += r[0].transcript;
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      tabStream = await navigator.mediaDevices.getDisplayMedia({
+        audio: { suppressLocalAudioPlayback: false },
+        video: true
+      });
+    } catch (e) {
+      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+      if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
+        alert('音声の取得に失敗しました: ' + e.message);
       }
-      txtTrans.value = finalTranscript + (interim ? `\n【認識中】${interim}` : '');
-      txtTrans.scrollTop = txtTrans.scrollHeight;
+      return;
+    }
+
+    tabStream.getVideoTracks().forEach(t => t.stop());
+
+    audioCtx = new AudioContext({ sampleRate: 16000 });
+    const dest = audioCtx.createMediaStreamDestination();
+    audioCtx.createMediaStreamSource(micStream).connect(dest);
+    const audioTracks = tabStream.getAudioTracks();
+    if (audioTracks.length > 0) {
+      audioCtx.createMediaStreamSource(new MediaStream(audioTracks)).connect(dest);
+    }
+
+    dgSocket = new WebSocket(
+      'wss://api.deepgram.com/v1/listen?language=ja&model=nova-2&punctuate=true&interim_results=true',
+      ['token', dgKey]
+    );
+
+    dgSocket.onopen = () => {
+      mediaRecorder = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' });
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0 && dgSocket && dgSocket.readyState === WebSocket.OPEN) {
+          dgSocket.send(e.data);
+        }
+      };
+      mediaRecorder.start(250);
+      isRecording = true;
+      btnStart.style.display = 'none'; btnStop.style.display = 'block';
+      miniStart.style.display = 'none'; miniStop.style.display = 'block';
+      headerTitle.textContent = '🎙️ 診察中...';
     };
 
-    recognition.onerror = (event) => {
-      if (event.error === 'not-allowed') {
-        alert('マイクへのアクセスが拒否されました。ブラウザの設定でマイクを許可してください。');
-        resetToIdle();
-      } else if (event.error !== 'no-speech') {
-        console.error('SoapScribe 音声認識エラー:', event.error);
-      }
+    dgSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        const t = data.channel?.alternatives?.[0]?.transcript;
+        if (!t) return;
+        if (data.is_final) {
+          finalTranscript += (finalTranscript ? ' ' : '') + t;
+          txtTrans.value = finalTranscript;
+        } else {
+          txtTrans.value = finalTranscript + (finalTranscript ? ' ' : '') + `【認識中】${t}`;
+        }
+        txtTrans.scrollTop = txtTrans.scrollHeight;
+      } catch (_) {}
     };
 
-    recognition.onend = () => { if (isRecording) recognition.start(); };
-
-    recognition.start();
-    isRecording = true;
-    btnStart.style.display = 'none'; btnStop.style.display = 'block';
-    miniStart.style.display = 'none'; miniStop.style.display = 'block';
-    headerTitle.textContent = '🎙️ 診察中...';
+    dgSocket.onerror = () => {
+      stopRecording();
+      showError('Deepgram接続エラー。APIキーを確認してください。');
+      resetToIdle();
+    };
   });
 
   btnStop.addEventListener('click', () => {
-    stopRecognition();
+    stopRecording();
     txtTrans.value = finalTranscript.trim();
     const charCount = finalTranscript.trim().length;
     if (charCount > 0) transcriptBadge.textContent = `${charCount}文字`;
@@ -408,9 +443,14 @@ if (!document.getElementById('soap-voice-tool')) {
     generateSOAP();
   });
 
-  function stopRecognition() {
+  function stopRecording() {
     isRecording = false;
-    if (recognition) { recognition.stop(); recognition = null; }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+    mediaRecorder = null;
+    if (dgSocket) { dgSocket.close(); dgSocket = null; }
+    if (audioCtx) { audioCtx.close(); audioCtx = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (tabStream) { tabStream.getTracks().forEach(t => t.stop()); tabStream = null; }
   }
 
   function resetToIdle() {
