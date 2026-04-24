@@ -147,12 +147,19 @@ if (!document.getElementById('soap-voice-tool')) {
         ${btnOutline(C.navyMid)}display:none;flex-shrink:0;">🔄 再生成する</button>
 
       <div style="flex-shrink:0;">
-        <div style="font-size:11px;color:${C.textSub};margin-bottom:3px;font-family:${C.font};">
-          📝 文字起こし（編集可能）</div>
-        <textarea id="txt-transcript" style="width:100%;min-height:75px;box-sizing:border-box;
-          font-size:12px;padding:7px;border:1px solid ${C.border};border-radius:3px;
-          resize:vertical;line-height:1.5;font-family:${C.font};color:${C.text};"
-          placeholder="診察を開始すると文字起こしがリアルタイムで表示されます..."></textarea>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+          <button id="tog-transcript" style="flex:1;padding:5px 10px;
+            background:${C.bluePale};border:1px solid ${C.border};border-radius:3px;
+            font-size:12px;color:${C.navyMid};cursor:pointer;text-align:left;font-family:${C.font};">
+            📝 文字起こし</button>
+          <span id="transcript-badge" style="font-size:11px;color:${C.blue};white-space:nowrap;font-family:${C.font};"></span>
+        </div>
+        <div id="area-transcript" style="display:none;">
+          <textarea id="txt-transcript" style="width:100%;min-height:75px;box-sizing:border-box;
+            font-size:12px;padding:7px;border:1px solid ${C.border};border-radius:3px;
+            resize:vertical;line-height:1.5;font-family:${C.font};color:${C.text};"
+            placeholder="診察を開始すると文字起こしがリアルタイムで表示されます..."></textarea>
+        </div>
       </div>
 
       <div style="flex-grow:1;display:flex;flex-direction:column;min-height:130px;">
@@ -197,6 +204,9 @@ if (!document.getElementById('soap-voice-tool')) {
   const btnRetry    = container.querySelector('#btn-retry');
   const txtTrans    = container.querySelector('#txt-transcript');
   const txtSoap     = container.querySelector('#txt-soap');
+  const togTranscript   = container.querySelector('#tog-transcript');
+  const areaTranscript  = container.querySelector('#area-transcript');
+  const transcriptBadge = container.querySelector('#transcript-badge');
   const btnAppend   = container.querySelector('#btn-append');
   const btnOverwrite = container.querySelector('#btn-overwrite');
 
@@ -209,6 +219,14 @@ if (!document.getElementById('soap-voice-tool')) {
   // ---- Initialise ----
   loadPrompts();
   fetchPastCharts();
+
+  // Start minimized
+  isMinimized = true;
+  contentDiv.style.display = 'none';
+  container.style.minHeight = '0';
+  container.style.height = 'auto';
+  container.style.resize = 'none';
+  minBtn.textContent = '＋';
 
   // ---- Prompt selector ----
   function loadPrompts() {
@@ -234,7 +252,11 @@ if (!document.getElementById('soap-voice-tool')) {
   });
 
   btnSettings.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+    chrome.runtime.sendMessage({ action: 'openOptionsPage' });
+  });
+
+  togTranscript.addEventListener('click', () => {
+    areaTranscript.style.display = areaTranscript.style.display !== 'none' ? 'none' : 'block';
   });
 
   // ---- Past chart auto-fetch ----
@@ -380,8 +402,10 @@ if (!document.getElementById('soap-voice-tool')) {
   btnStop.addEventListener('click', () => {
     stopRecognition();
     txtTrans.value = finalTranscript.trim();
-    btnGenerate.style.display = 'block';
+    const charCount = finalTranscript.trim().length;
+    if (charCount > 0) transcriptBadge.textContent = `${charCount}文字`;
     resetToIdle();
+    generateSOAP();
   });
 
   function stopRecognition() {
@@ -432,6 +456,15 @@ if (!document.getElementById('soap-voice-tool')) {
           } else {
             txtSoap.value = response.text.trim();
             headerTitle.textContent = '✓ 完了 — SoapScribe';
+            if (isMinimized) {
+              contentDiv.style.display = 'flex';
+              container.style.minHeight = '440px';
+              container.style.height = prevH;
+              container.style.width = prevW;
+              container.style.resize = 'both';
+              isMinimized = false;
+              minBtn.textContent = '－';
+            }
           }
           btnRetry.style.display = 'block';
         }

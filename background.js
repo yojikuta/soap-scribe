@@ -6,6 +6,11 @@ chrome.action.onClicked.addListener((tab) => {
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openOptionsPage') {
+    chrome.runtime.openOptionsPage();
+    return false;
+  }
+
   if (request.action !== 'callClaudeAPI') return false;
 
   // API key uses sync storage so it follows the user's Google account across devices
