@@ -41,6 +41,28 @@ P)（Plan: 計画）
 - その記法・表記スタイル・略語・表現パターンを分析し、同じスタイルで出力する
 - S)より上のセクション（臨床経過、検査結果など）が冗長になっている場合、重要情報を保持しつつ適切にサマライズして可読性を高める`;
 
+const REFERRAL_SYSTEM_PROMPT = `あなたは専門的な医療アシスタントです。
+提供されたSOAP形式の診療記録と過去カルテをもとに、厚生労働省「診療情報提供書（I）」に準じた紹介状本文を生成してください。
+
+# 出力形式
+プレーンテキストで以下の順に出力する。空欄の項目は「特記なし」と記す。
+
+傷病名：
+既往歴：
+家族歴：
+症状経過および診療内容：
+検査結果：
+現在の処方：
+紹介目的・依頼内容：
+その他特記事項：
+
+# 制約事項
+- Markdown記法は使用しない（プレーンテキスト）
+- 患者氏名・生年月日・住所等の個人識別情報は「（患者氏名）」のようにプレースホルダーで示す
+- てんかん専門医としての専門的記載（発作型・発作頻度・使用薬剤・脳波所見等）を適切に含める
+- 簡潔かつ医療専門用語を用いて記載する
+- 「。」はなるべく使用せず適宜改行を入れて読みやすくする`;
+
 // ---- CLIUS design tokens ----
 const C = {
   navy:       '#252b47',
@@ -178,6 +200,30 @@ if (!document.getElementById('soap-voice-tool')) {
           ${btn(C.navyMid, C.white)}">▲ カルテを上書き</button>
       </div>
 
+      <div style="flex-shrink:0;border-top:1px solid ${C.border};padding-top:8px;margin-top:2px;">
+        <button id="tog-referral" style="width:100%;padding:5px 10px;
+          background:${C.bluePale};border:1px solid ${C.border};border-radius:3px;
+          font-size:12px;color:${C.navyMid};cursor:pointer;text-align:left;font-family:${C.font};">
+          📄 診療情報提供書を生成</button>
+        <div id="area-referral" style="display:none;margin-top:6px;flex-direction:column;gap:5px;">
+          <input type="text" id="inp-ref-hospital" placeholder="紹介先医療機関名"
+            style="width:100%;padding:5px 8px;font-size:12px;border:1px solid ${C.border};
+            border-radius:3px;font-family:${C.font};color:${C.text};box-sizing:border-box;">
+          <input type="text" id="inp-ref-doctor" placeholder="担当医名（例：山田先生）"
+            style="width:100%;padding:5px 8px;font-size:12px;border:1px solid ${C.border};
+            border-radius:3px;font-family:${C.font};color:${C.text};box-sizing:border-box;">
+          <button id="btn-gen-referral" style="width:100%;padding:8px;font-size:12px;
+            ${btn(C.navyMid, C.white)}">🤖 紹介状を生成</button>
+          <textarea id="txt-referral" style="display:none;width:100%;min-height:160px;
+            box-sizing:border-box;font-size:12px;padding:7px;border:1px solid ${C.border};
+            border-radius:3px;resize:vertical;line-height:1.5;
+            font-family:${C.font};color:${C.text};"
+            placeholder="生成された紹介状がここに表示されます..."></textarea>
+          <button id="btn-copy-referral" style="display:none;width:100%;padding:6px;
+            font-size:12px;${btnOutline(C.navyMid)}">📋 コピー</button>
+        </div>
+      </div>
+
     </div>
   `;
 
@@ -207,8 +253,15 @@ if (!document.getElementById('soap-voice-tool')) {
   const togTranscript   = container.querySelector('#tog-transcript');
   const areaTranscript  = container.querySelector('#area-transcript');
   const transcriptBadge = container.querySelector('#transcript-badge');
-  const btnAppend   = container.querySelector('#btn-append');
-  const btnOverwrite = container.querySelector('#btn-overwrite');
+  const btnAppend      = container.querySelector('#btn-append');
+  const btnOverwrite   = container.querySelector('#btn-overwrite');
+  const togReferral    = container.querySelector('#tog-referral');
+  const areaReferral   = container.querySelector('#area-referral');
+  const inpRefHospital = container.querySelector('#inp-ref-hospital');
+  const inpRefDoctor   = container.querySelector('#inp-ref-doctor');
+  const btnGenReferral = container.querySelector('#btn-gen-referral');
+  const txtReferral    = container.querySelector('#txt-referral');
+  const btnCopyReferral = container.querySelector('#btn-copy-referral');
 
   let isRecording = false;
   let isMinimized = false;
@@ -547,4 +600,52 @@ if (!document.getElementById('soap-voice-tool')) {
 
   btnAppend.addEventListener('click',    () => insertToActiveField('append'));
   btnOverwrite.addEventListener('click', () => insertToActiveField('overwrite'));
+
+  // ---- Referral letter ----
+  togReferral.addEventListener('click', () => {
+    const open = areaReferral.style.display === 'flex';
+    areaReferral.style.display = open ? 'none' : 'flex';
+  });
+
+  btnGenReferral.addEventListener('click', () => {
+    const soapText = txtSoap.value.trim();
+    if (!soapText || soapText.includes('生成しています')) {
+      alert('先にSOAPを生成してください。'); return;
+    }
+
+    txtReferral.style.display = 'block';
+    btnCopyReferral.style.display = 'none';
+    txtReferral.value = '診療情報提供書を生成しています...';
+    btnGenReferral.disabled = true;
+
+    const hospital = inpRefHospital.value.trim();
+    const doctor   = inpRefDoctor.value.trim();
+    const pastChart = inpPast.value.trim();
+
+    let userMessage = '';
+    if (pastChart)  userMessage += `【過去カルテ（参照用）】\n${pastChart}\n\n`;
+    userMessage += `【今回のSOAP記録】\n${soapText}`;
+    if (hospital)   userMessage += `\n\n【紹介先医療機関】${hospital}`;
+    if (doctor)     userMessage += `\n【担当医】${doctor}先生`;
+
+    chrome.runtime.sendMessage(
+      { action: 'callClaudeAPI', systemPrompt: REFERRAL_SYSTEM_PROMPT, userMessage },
+      (response) => {
+        btnGenReferral.disabled = false;
+        if (chrome.runtime.lastError || response?.error) {
+          txtReferral.value = 'エラー: ' + (response?.error || chrome.runtime.lastError?.message);
+        } else {
+          txtReferral.value = response.text.trim();
+          btnCopyReferral.style.display = 'block';
+        }
+      }
+    );
+  });
+
+  btnCopyReferral.addEventListener('click', () => {
+    navigator.clipboard.writeText(txtReferral.value).then(() => {
+      btnCopyReferral.textContent = '✓ コピーしました';
+      setTimeout(() => { btnCopyReferral.textContent = '📋 コピー'; }, 2000);
+    });
+  });
 }
