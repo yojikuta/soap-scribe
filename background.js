@@ -11,6 +11,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false;
   }
 
+  if (request.action === 'checkCuronTab') {
+    chrome.tabs.query({ url: ['*://curon.co/*', '*://*.curon.co/*'] }, (tabs) => {
+      if (!tabs.length) { sendResponse({ streamId: null }); return; }
+      chrome.tabCapture.getMediaStreamId(
+        { targetTabId: tabs[0].id, consumerTabId: sender.tab.id },
+        (streamId) => {
+          if (chrome.runtime.lastError || !streamId) {
+            sendResponse({ streamId: null });
+          } else {
+            sendResponse({ streamId });
+          }
+        }
+      );
+    });
+    return true;
+  }
+
   if (request.action !== 'callClaudeAPI') return false;
 
   // API key uses sync storage so it follows the user's Google account across devices

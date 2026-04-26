@@ -422,28 +422,37 @@ if (!document.getElementById('soap-voice-tool')) {
     txtSoap.value = '';
     btnRetry.style.display = 'none';
 
+    // Check for Curon tab before any dialog
+    const curonCheck = await new Promise(r => chrome.runtime.sendMessage({ action: 'checkCuronTab' }, r));
+    const curonStreamId = curonCheck?.streamId || null;
+
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-      tabStream = await navigator.mediaDevices.getDisplayMedia({
-        audio: { suppressLocalAudioPlayback: false },
-        video: true
-      });
     } catch (e) {
-      if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
       if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
-        alert('音声の取得に失敗しました: ' + e.message);
+        alert('マイクへのアクセスが拒否されました。ブラウザの設定でマイクを許可してください。');
       }
       return;
     }
 
-    tabStream.getVideoTracks().forEach(t => t.stop());
-
     audioCtx = new AudioContext({ sampleRate: 16000 });
     const dest = audioCtx.createMediaStreamDestination();
     audioCtx.createMediaStreamSource(micStream).connect(dest);
-    const audioTracks = tabStream.getAudioTracks();
-    if (audioTracks.length > 0) {
-      audioCtx.createMediaStreamSource(new MediaStream(audioTracks)).connect(dest);
+
+    let usingCuron = false;
+    if (curonStreamId) {
+      try {
+        tabStream = await navigator.mediaDevices.getUserMedia({
+          audio: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: curonStreamId } },
+          video: false
+        });
+        const tabSource = audioCtx.createMediaStreamSource(tabStream);
+        tabSource.connect(dest);
+        tabSource.connect(audioCtx.destination); // タブ音声を引き続きスピーカーへ出力
+        usingCuron = true;
+      } catch (e) {
+        console.warn('SoapScribe: curonタブ音声の取得に失敗、マイクのみで続行', e);
+      }
     }
 
     dgSocket = new WebSocket(
@@ -462,7 +471,7 @@ if (!document.getElementById('soap-voice-tool')) {
       isRecording = true;
       btnStart.style.display = 'none'; btnStop.style.display = 'block';
       miniStart.style.display = 'none'; miniStop.style.display = 'block';
-      headerTitle.textContent = '🎙️ 診察中...';
+      headerTitle.textContent = usingCuron ? '🎙️ 診察中（curon連携）' : '🎙️ 診察中...';
     };
 
     dgSocket.onmessage = (event) => {
