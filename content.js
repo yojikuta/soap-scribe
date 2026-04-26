@@ -424,7 +424,7 @@ if (!document.getElementById('soap-voice-tool')) {
 
     // Check for Curon tab before any dialog
     const curonCheck = await new Promise(r => chrome.runtime.sendMessage({ action: 'checkCuronTab' }, r));
-    const curonStreamId = curonCheck?.streamId || null;
+    console.log('[SoapScribe] curon check:', curonCheck);
 
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
@@ -440,18 +440,42 @@ if (!document.getElementById('soap-voice-tool')) {
     audioCtx.createMediaStreamSource(micStream).connect(dest);
 
     let usingCuron = false;
-    if (curonStreamId) {
-      try {
-        tabStream = await navigator.mediaDevices.getUserMedia({
-          audio: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: curonStreamId } },
-          video: false
-        });
-        const tabSource = audioCtx.createMediaStreamSource(tabStream);
-        tabSource.connect(dest);
-        tabSource.connect(audioCtx.destination); // タブ音声を引き続きスピーカーへ出力
-        usingCuron = true;
-      } catch (e) {
-        console.warn('SoapScribe: curonタブ音声の取得に失敗、マイクのみで続行', e);
+    if (curonCheck?.tabFound) {
+      if (curonCheck.streamId) {
+        // 方法①: tabCapture（ダイアログなし）
+        try {
+          tabStream = await navigator.mediaDevices.getUserMedia({
+            audio: { mandatory: { chromeMediaSource: 'tab', chromeMediaSourceId: curonCheck.streamId } },
+            video: false
+          });
+          const tabSrc = audioCtx.createMediaStreamSource(tabStream);
+          tabSrc.connect(dest);
+          tabSrc.connect(audioCtx.destination); // 患者音声を引き続きスピーカーへ出力
+          usingCuron = true;
+          console.log('[SoapScribe] tabCapture成功');
+        } catch (e) {
+          console.warn('[SoapScribe] tabCapture失敗、getDisplayMediaにフォールバック:', e.name, e.message);
+        }
+      }
+      // 方法②: tabCaptureが使えない場合はgetDisplayMediaで選択（curonタブを選んでください）
+      if (!usingCuron) {
+        try {
+          const ds = await navigator.mediaDevices.getDisplayMedia({
+            audio: { suppressLocalAudioPlayback: false },
+            video: true
+          });
+          ds.getVideoTracks().forEach(t => t.stop());
+          const audioTracks = ds.getAudioTracks();
+          if (audioTracks.length > 0) {
+            tabStream = new MediaStream(audioTracks);
+            audioCtx.createMediaStreamSource(tabStream).connect(dest);
+            usingCuron = true;
+          }
+        } catch (e) {
+          if (e.name !== 'AbortError' && e.name !== 'NotAllowedError') {
+            console.warn('[SoapScribe] getDisplayMediaも失敗:', e);
+          }
+        }
       }
     }
 

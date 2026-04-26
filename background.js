@@ -13,14 +13,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === 'checkCuronTab') {
     chrome.tabs.query({ url: ['*://curon.co/*', '*://*.curon.co/*'] }, (tabs) => {
-      if (!tabs.length) { sendResponse({ streamId: null }); return; }
+      if (chrome.runtime.lastError) {
+        console.warn('[SoapScribe] tabs.query error:', chrome.runtime.lastError.message);
+        sendResponse({ streamId: null, tabFound: false });
+        return;
+      }
+      if (!tabs.length) {
+        sendResponse({ streamId: null, tabFound: false });
+        return;
+      }
+      console.log('[SoapScribe] curonタブ発見:', tabs[0].id, tabs[0].url);
       chrome.tabCapture.getMediaStreamId(
         { targetTabId: tabs[0].id, consumerTabId: sender.tab.id },
         (streamId) => {
-          if (chrome.runtime.lastError || !streamId) {
-            sendResponse({ streamId: null });
+          if (chrome.runtime.lastError) {
+            console.warn('[SoapScribe] getMediaStreamId error:', chrome.runtime.lastError.message);
+            sendResponse({ streamId: null, tabFound: true });
           } else {
-            sendResponse({ streamId });
+            console.log('[SoapScribe] streamId取得:', streamId ? '成功' : '空');
+            sendResponse({ streamId: streamId || null, tabFound: true });
           }
         }
       );
