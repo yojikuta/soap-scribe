@@ -253,7 +253,7 @@ if (!document.getElementById('soap-voice-tool')) {
   });
 
   btnSettings.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'openOptionsPage' });
+    chrome.runtime.openOptionsPage();
   });
 
   togTranscript.addEventListener('click', () => {
@@ -473,6 +473,16 @@ if (!document.getElementById('soap-voice-tool')) {
     headerTitle.textContent = '生成中...';
     txtSoap.value = 'Claude AIが診察録を生成しています。しばらくお待ちください...';
 
+    if (isMinimized) {
+      contentDiv.style.display = 'flex';
+      container.style.minHeight = '440px';
+      container.style.height = prevH;
+      container.style.width = prevW;
+      container.style.resize = 'both';
+      isMinimized = false;
+      minBtn.textContent = '－';
+    }
+
     chrome.storage.local.get(['prompts'], (result) => {
       const prompts = result.prompts || [];
       const selected = prompts.find(p => p.id === selPrompt.value);
@@ -496,15 +506,6 @@ if (!document.getElementById('soap-voice-tool')) {
           } else {
             txtSoap.value = response.text.trim();
             headerTitle.textContent = '✓ 完了 — SoapScribe';
-            if (isMinimized) {
-              contentDiv.style.display = 'flex';
-              container.style.minHeight = '440px';
-              container.style.height = prevH;
-              container.style.width = prevW;
-              container.style.resize = 'both';
-              isMinimized = false;
-              minBtn.textContent = '－';
-            }
           }
           btnRetry.style.display = 'block';
         }
