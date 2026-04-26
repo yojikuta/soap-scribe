@@ -306,7 +306,7 @@ if (!document.getElementById('soap-voice-tool')) {
   });
 
   btnSettings.addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
+    chrome.runtime.sendMessage({ action: 'openOptionsPage' });
   });
 
   togTranscript.addEventListener('click', () => {
