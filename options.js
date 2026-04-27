@@ -51,14 +51,16 @@ let selectedIndex = 0;
 // ---- Load saved settings ----
 // API key: chrome.storage.sync (follows Google account across devices)
 // Prompts:  chrome.storage.local (too large for sync quota)
-chrome.storage.sync.get(['claudeApiKey', 'deepgramApiKey'], (syncResult) => {
+chrome.storage.sync.get(['claudeApiKey', 'deepgramApiKey', 'claudeModel'], (syncResult) => {
   if (syncResult.claudeApiKey) setKeyStatus('✅ APIキーが設定されています', true);
   if (syncResult.deepgramApiKey) setDgKeyStatus('✅ APIキーが設定されています', true);
+  if (syncResult.claudeModel) document.getElementById('sel-model').value = syncResult.claudeModel;
 });
-chrome.storage.local.get(['prompts'], (result) => {
+chrome.storage.local.get(['prompts', 'referralPrompt'], (result) => {
   prompts = (result.prompts && result.prompts.length > 0) ? result.prompts : DEFAULT_PROMPTS;
   renderList();
   selectPrompt(0);
+  if (result.referralPrompt) document.getElementById('referral-prompt').value = result.referralPrompt;
 });
 
 // ---- Prompt list rendering ----
@@ -115,6 +117,37 @@ function setDgKeyStatus(msg, ok) {
   el.className = 'status ' + (ok ? 'ok' : 'error');
 }
 
+// ---- Model selection ----
+document.getElementById('btn-save-model').addEventListener('click', () => {
+  const model = document.getElementById('sel-model').value;
+  chrome.storage.sync.set({ claudeModel: model }, () => {
+    const el = document.getElementById('model-status');
+    el.textContent = '✅ 保存しました';
+    el.className = 'status ok';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  });
+});
+
+// ---- Referral prompt ----
+document.getElementById('btn-save-referral-prompt').addEventListener('click', () => {
+  const content = document.getElementById('referral-prompt').value.trim();
+  chrome.storage.local.set({ referralPrompt: content || null }, () => {
+    const el = document.getElementById('referral-prompt-status');
+    el.textContent = '✅ 保存しました';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  });
+});
+
+document.getElementById('btn-reset-referral-prompt').addEventListener('click', () => {
+  if (!confirm('デフォルトのプロンプトに戻しますか？')) return;
+  chrome.storage.local.remove('referralPrompt', () => {
+    document.getElementById('referral-prompt').value = '';
+    const el = document.getElementById('referral-prompt-status');
+    el.textContent = '✅ デフォルトに戻しました';
+    setTimeout(() => { el.textContent = ''; }, 2000);
+  });
+});
+
 // ---- New prompt ----
 document.getElementById('btn-new-prompt').addEventListener('click', () => {
   prompts.push({ id: Date.now().toString(), name: '新しいプロンプト', content: '' });
@@ -151,14 +184,16 @@ function savePrompts() {
 // ---- Export ----
 document.getElementById('btn-export').addEventListener('click', () => {
   // Gather from both storage areas
-  chrome.storage.sync.get(['claudeApiKey', 'deepgramApiKey'], (syncResult) => {
-    chrome.storage.local.get(['prompts'], (localResult) => {
+  chrome.storage.sync.get(['claudeApiKey', 'deepgramApiKey', 'claudeModel'], (syncResult) => {
+    chrome.storage.local.get(['prompts', 'referralPrompt'], (localResult) => {
       const config = {
-        version: '1.0',
+        version: '1.1',
         exportedAt: new Date().toISOString(),
         claudeApiKey: syncResult.claudeApiKey || '',
         deepgramApiKey: syncResult.deepgramApiKey || '',
+        claudeModel: syncResult.claudeModel || 'claude-sonnet-4-6',
         prompts: localResult.prompts || DEFAULT_PROMPTS,
+        referralPrompt: localResult.referralPrompt || '',
       };
       const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
@@ -202,6 +237,14 @@ document.getElementById('inp-import-file').addEventListener('change', (e) => {
         chrome.storage.sync.set({ deepgramApiKey: config.deepgramApiKey }, () => {
           setDgKeyStatus('✅ Deepgram APIキーを読み込みました', true);
         });
+      }
+      if (config.claudeModel) {
+        chrome.storage.sync.set({ claudeModel: config.claudeModel });
+        document.getElementById('sel-model').value = config.claudeModel;
+      }
+      if (config.referralPrompt) {
+        chrome.storage.local.set({ referralPrompt: config.referralPrompt });
+        document.getElementById('referral-prompt').value = config.referralPrompt;
       }
       setSyncStatus(`✅ インポート完了（プロンプト ${config.prompts.length} 件${config.claudeApiKey ? '・Claudeキー' : ''}${config.deepgramApiKey ? '・Deepgramキー' : ''}）`);
     } catch (err) {

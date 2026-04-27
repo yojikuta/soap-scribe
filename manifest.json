@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SoapScribe",
-  "version": "4.0",
+  "version": "4.1",
   "description": "AI-powered medical scribe for CLIUS — transcribes consultations and generates SOAP notes via Claude AI.",
   "permissions": [
     "activeTab",

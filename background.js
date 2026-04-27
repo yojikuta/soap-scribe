@@ -42,7 +42,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action !== 'callClaudeAPI') return false;
 
   // API key uses sync storage so it follows the user's Google account across devices
-  chrome.storage.sync.get(['claudeApiKey'], async (result) => {
+  chrome.storage.sync.get(['claudeApiKey', 'claudeModel'], async (result) => {
     if (!result.claudeApiKey) {
       sendResponse({ error: 'Claude APIキーが未設定です。⚙️ 設定からAPIキーを入力してください。' });
       return;
@@ -59,7 +59,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           'anthropic-dangerous-direct-browser-access': 'true'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-6',
+          model: result.claudeModel || 'claude-sonnet-4-6',
           max_tokens: 4096,
           system: [
             {
